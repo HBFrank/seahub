@@ -571,3 +571,12 @@ if getattr(settings, 'ENABLE_ONLYOFFICE', False):
         '',
         url(r'^onlyoffice/editor-callback/$', onlyoffice_editor_callback, name='onlyoffice_editor_callback'),
     )
+
+if getattr(settings, 'ENABLE_ICOURT_LOGIN', False):
+    from seahub_extra.icourt_auth.views import *
+    urlpatterns += patterns(
+        '',
+        url(r'^api2/weixin-login/$', API2WeixinLogin.as_view(), name='api2_weixin_login'),
+        url(r'^accounts/weixin-login/$', weixin_login, name='weixin_login'),
+        url(r'^weixinlogin/$', weixin_login_callback, name='weixin_login_callback'),
+    )
