@@ -620,6 +620,15 @@ class Repos(APIView):
                 if e not in nickname_dict:
                     nickname_dict[e] = email2nickname(e)
 
+            # Reduce memcache fetch ops.
+            owners_set = set([x.user for x in shared_repos])
+            modifiers_set = set([x.last_modifier for x in shared_repos])
+            for e in owners_set | modifiers_set:
+                if e not in contact_email_dict:
+                    contact_email_dict[e] = email2contact_email(e)
+                if e not in nickname_dict:
+                    nickname_dict[e] = email2nickname(e)
+
             shared_repos.sort(lambda x, y: cmp(y.last_modify, x.last_modify))
             for r in shared_repos:
                 if q and q.lower() not in r.name.lower():
@@ -1055,7 +1064,10 @@ class Repo(APIView):
             "modifier_contact_email": email2contact_email(repo.last_modifier),
             "modifier_name": email2nickname(repo.last_modifier),
             "file_count": repo.file_count,
-            }
+            "modifier_email": repo.last_modifier,
+            "modifier_contact_email": email2contact_email(repo.last_modifier),
+            "modifier_name": email2nickname(repo.last_modifier),
+        }
         if repo.encrypted:
             repo_json["enc_version"] = repo.enc_version
             repo_json["magic"] = repo.magic
@@ -4235,6 +4247,7 @@ class GroupRepos(APIView):
         # Get repos that is admin permission in group.
         admin_repos = ExtraGroupsSharePermission.objects.\
                 get_repos_with_admin_permission(group.id)
+
         repos_json = []
         for r in repos:
             repo = {
