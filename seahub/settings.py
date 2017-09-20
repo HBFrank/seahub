@@ -455,7 +455,7 @@ LOGIN_BG_IMAGE_PATH = 'img/login-bg.jpg'
 FAVICON_PATH = 'img/favicon.ico'
 
 # Path to the Logo Imagefile (relative to the media path)
-LOGO_PATH = 'img/seafile-logo.png'
+LOGO_PATH = 'img/alphabox-logo.png'
 # logo size. the unit is 'px'
 LOGO_WIDTH = 128
 LOGO_HEIGHT = 32
