@@ -1510,8 +1510,8 @@ class UploadLinkView(APIView):
             return api_error(status.HTTP_403_FORBIDDEN,
                     'You do not have permission to access this folder.')
 
-        if check_quota(repo_id) < 0:
-            return api_error(HTTP_443_ABOVE_QUOTA, 'Above quota')
+#        if check_quota(repo_id) < 0:
+#            return api_error(HTTP_443_ABOVE_QUOTA, 'Above quota')
 
         token = seafile_api.get_fileserver_access_token(repo_id,
                 'dummy', 'upload', request.user.username, use_onetime=False)
@@ -1554,8 +1554,8 @@ class UpdateLinkView(APIView):
             return api_error(status.HTTP_403_FORBIDDEN,
                     'You do not have permission to access this folder.')
 
-        if check_quota(repo_id) < 0:
-            return api_error(HTTP_443_ABOVE_QUOTA, 'Above quota')
+#        if check_quota(repo_id) < 0:
+#            return api_error(HTTP_443_ABOVE_QUOTA, 'Above quota')
 
         token = seafile_api.get_fileserver_access_token(repo_id,
                 'dummy', 'update', request.user.username, use_onetime=False)
