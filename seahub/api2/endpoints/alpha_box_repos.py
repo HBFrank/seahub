@@ -197,3 +197,102 @@ class AlphaBoxReposCount(APIView):
         }
 
         return Response(result)
+
+
+class AlphaBoxReposSearch(APIView):
+
+    authentication_classes = (TokenAuthentication, SessionAuthentication)
+    permission_classes = (IsAuthenticated,)
+    throttle_classes = (UserRateThrottle,)
+
+    def get_owned_repos_info(self, request):
+
+        result = []
+        username = request.user.username
+
+        if is_org_context(request):
+            org_id = request.user.org.org_id
+            repos = seafile_api.get_org_owned_repo_list(org_id,
+                    username, ret_corrupted=False, start=-1, limit=-1)
+        else:
+            repos = seafile_api.get_owned_repo_list(
+                    username, ret_corrupted=False, start=-1, limit=-1)
+
+        searched_name = request.GET.get('nameContains', '')
+        for repo in repos:
+            if searched_name.lower() not in repo.repo_name.lower():
+                continue
+
+            repo_info = get_my_repo_info(repo)
+            repo_info['type'] = 'mine'
+            result.append(repo_info)
+
+        return result
+
+    def get_shared_in_repos_info(self, request):
+
+        result = []
+        username = request.user.username
+
+        shared_from = request.GET.get('shared_from', None)
+        not_shared_from = request.GET.get('not_shared_from', None)
+
+        if is_org_context(request):
+            org_id = request.user.org.org_id
+            if shared_from:
+                repos = seafile_api.org_get_share_in_repo_list_with_sharer(org_id,
+                        username, shared_from, negate=False, start=-1, limit=-1)
+            elif not_shared_from:
+                repos = seafile_api.org_get_share_in_repo_list_with_sharer(org_id,
+                        username, not_shared_from, negate=True, start=-1, limit=-1)
+            else:
+                repos = seafile_api.get_org_share_in_repo_list(org_id,
+                        username, start=-1, limit=-1)
+        else:
+            # TODO, not used currently
+            repos = []
+
+        searched_name = request.GET.get('nameContains', '')
+        for repo in repos:
+            if searched_name.lower() not in repo.repo_name.lower():
+                continue
+
+            repo_info = get_shared_in_repo_info(repo)
+            repo_info['type'] = 'shared'
+            result.append(repo_info)
+
+        return result
+
+    def get(self, request):
+        """ Search repo by name
+
+        Permission checking:
+        1. all authenticated user can perform this action.
+        """
+
+        r_type = request.GET.get('type', '')
+        if r_type and r_type not in ('mine', 'shared'):
+            error_msg = "type should be 'mine' or 'shared'."
+            return api_error(status.HTTP_400_BAD_REQUEST, error_msg)
+
+        searched_name = request.GET.get('nameContains', '')
+        if not searched_name:
+            error_msg = 'nameContains invalid.'
+            return api_error(status.HTTP_400_BAD_REQUEST, error_msg)
+
+        owned_repos_info = []
+        shared_in_repos_info = []
+        try:
+            if not r_type:
+                owned_repos_info = self.get_owned_repos_info(request)
+                shared_in_repos_info = self.get_shared_in_repos_info(request)
+            elif r_type.lower() == 'mine':
+                owned_repos_info = self.get_owned_repos_info(request)
+            elif r_type.lower() == 'shared':
+                shared_in_repos_info = self.get_shared_in_repos_info(request)
+        except Exception as e:
+            logger.error(e)
+            error_msg = 'Internal Server Error'
+            return api_error(status.HTTP_500_INTERNAL_SERVER_ERROR, error_msg)
+
+        return Response(owned_repos_info + shared_in_repos_info)
