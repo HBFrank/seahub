@@ -1,6 +1,7 @@
 # Copyright (c) 2012-2016 Seafile Ltd.
 import stat
 import logging
+import posixpath
 
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -13,9 +14,12 @@ from seahub.api2.authentication import TokenAuthentication
 from seahub.api2.utils import api_error
 
 from seahub.signals import clean_up_repo_trash
+from seahub.utils import normalize_file_path
 from seahub.utils.timeutils import timestamp_to_isoformat_timestr
 from seahub.utils.repo import get_repo_owner
 from seahub.views import check_folder_permission
+
+from seahub.repo_trash.models import TrashCleanedItems
 
 from seaserv import seafile_api
 from pysearpc import SearpcError
@@ -116,8 +120,31 @@ class RepoTrash(APIView):
                 item_info = self.get_item_info(item)
                 items.append(item_info)
 
+        # filter out cleaned file/folder
+        cleaned_path = []
+        try:
+            trash_cleaned_items = TrashCleanedItems.objects.get_items_by_repo(repo_id)
+        except Exception as e:
+            logger.error(e)
+            trash_cleaned_items = []
+
+        for item in trash_cleaned_items:
+            cleaned_path.append(item.path)
+
+        filtered_items = []
+        for item in items:
+
+            obj_full_path = posixpath.join(
+                    item['parent_dir'], item['obj_name'])
+            obj_full_path = normalize_file_path(obj_full_path)
+
+            if obj_full_path in cleaned_path:
+                continue
+            else:
+                filtered_items.append(item)
+
         result = {
-            'data': items,
+            'data': filtered_items,
             'more': more,
             'scan_stat': scan_stat,
         }
@@ -155,6 +182,52 @@ class RepoTrash(APIView):
             seafile_api.clean_up_repo_history(repo_id, keep_days)
             org_id = None if not request.user.org else request.user.org.org_id
             clean_up_repo_trash.send(sender=None, org_id=org_id, operator=username, repo_id=repo_id, repo_name=repo.name, days=keep_days)
+        except Exception as e:
+            logger.error(e)
+            error_msg = 'Internal Server Error'
+            return api_error(status.HTTP_500_INTERNAL_SERVER_ERROR, error_msg)
+
+        return Response({'success': True})
+
+
+class RepoTrashItem(APIView):
+
+    authentication_classes = (TokenAuthentication, SessionAuthentication)
+    permission_classes = (IsAuthenticated, )
+    throttle_classes = (UserRateThrottle, )
+
+    def delete(self, request, repo_id, format=None):
+        """ Delete file/folder from library's trash.
+
+        Permission checking:
+        1. only repo owner can perform this action.
+        """
+
+        # argument check
+        path = request.data.get('path', None)
+        if not path:
+            error_msg = 'path invalid.'
+            return api_error(status.HTTP_400_BAD_REQUEST, error_msg)
+
+        # as we don't know `path` patameter stands for a file or folder
+        # we always right strip `/` from it.
+        path = normalize_file_path(path)
+
+        # resource check
+        repo = seafile_api.get_repo(repo_id)
+        if not repo:
+            error_msg = 'Library %s not found.' % repo_id
+            return api_error(status.HTTP_404_NOT_FOUND, error_msg)
+
+        # permission check
+        username = request.user.username
+        repo_owner = get_repo_owner(request, repo_id)
+        if username != repo_owner:
+            error_msg = 'Permission denied.'
+            return api_error(status.HTTP_403_FORBIDDEN, error_msg)
+
+        try:
+            TrashCleanedItems.objects.add_item(repo_id, path)
         except Exception as e:
             logger.error(e)
             error_msg = 'Internal Server Error'
