@@ -82,6 +82,23 @@ class AlphaBoxRepos(APIView):
         start = (page - 1) * per_page
         limit = per_page
 
+        order_by = request.GET.get('order_by', 'last_modified')
+        if order_by not in ('name', 'size', 'last_modified'):
+            error_msg = "order_by can only be 'name', 'size', or 'last_modified'."
+            return api_error(status.HTTP_400_BAD_REQUEST, error_msg)
+
+        if order_by == 'last_modified':
+            order_by = 'update_time'
+
+        desc = request.GET.get('desc', 'false')
+        desc = desc.lower()
+        if desc not in ('true', 'false'):
+            error_msg = "desc should be 'true' or 'false'."
+            return api_error(status.HTTP_400_BAD_REQUEST, error_msg)
+
+        if desc == 'true':
+            order_by += '_desc'
+
         result = []
         username = request.user.username
         if r_type == 'mine':
@@ -89,7 +106,8 @@ class AlphaBoxRepos(APIView):
                 if is_org_context(request):
                     org_id = request.user.org.org_id
                     repos = seafile_api.get_org_owned_repo_list(org_id,
-                            username, ret_corrupted=False, start=start, limit=limit)
+                            username, ret_corrupted=False,
+                            start=start, limit=limit, order_by=order_by)
                 else:
                     repos = seafile_api.get_owned_repo_list(
                             username, ret_corrupted=False, start=start, limit=limit)
@@ -112,10 +130,12 @@ class AlphaBoxRepos(APIView):
                     org_id = request.user.org.org_id
                     if shared_from:
                         repos = seafile_api.org_get_share_in_repo_list_with_sharer(org_id,
-                                username, shared_from, negate=False, start=start, limit=limit)
+                                username, shared_from, negate=False,
+                                start=start, limit=limit, order_by=order_by)
                     elif not_shared_from:
                         repos = seafile_api.org_get_share_in_repo_list_with_sharer(org_id,
-                                username, not_shared_from, negate=True, start=start, limit=limit)
+                                username, not_shared_from, negate=True,
+                                start=start, limit=limit, order_by=order_by)
                     else:
                         repos = seafile_api.get_org_share_in_repo_list(org_id,
                                 username, start=start, limit=limit)
@@ -147,7 +167,7 @@ class AlphaBoxRepo(APIView):
         1. User can view repo.
         """
 
-        starred = request.data.get('starred', None)
+        starred = request.data.get('starred', '')
         starred = starred.lower()
         if starred not in ('true', 'false'):
             error_msg = "starred should be 'true' or 'false'."
