@@ -13,7 +13,7 @@ from seahub.api2.throttling import UserRateThrottle
 from seahub.api2.authentication import TokenAuthentication
 from seahub.api2.utils import api_error
 
-from seahub.signals import clean_up_repo_trash
+from seahub.signals import clean_up_repo_trash, clean_up_repo_trash_item
 from seahub.utils import normalize_file_path
 from seahub.utils.timeutils import timestamp_to_isoformat_timestr
 from seahub.utils.repo import get_repo_owner
@@ -228,6 +228,8 @@ class RepoTrashItem(APIView):
 
         try:
             TrashCleanedItems.objects.add_item(repo_id, path)
+            org_id = None if not request.user.org else request.user.org.org_id
+            clean_up_repo_trash_item.send(sender=None, org_id=org_id, operator=username, repo_id=repo_id, repo_name=repo.name, filepath=path)
         except Exception as e:
             logger.error(e)
             error_msg = 'Internal Server Error'

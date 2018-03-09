@@ -27,6 +27,9 @@ define([
                     this.activity.desc = gettext('Removed items older than {n} days from trash.').replace('{n}', this.activity.days);
                 }
             }
+            if (activity.etype == 'clean-up-repo-trash-item') {
+                this.activity.desc = gettext('Removed item {filepath} from trash.').replace('{filepath}', '"' + this.activity.filepath + '"');
+            }
         },
 
         showDetails: function () {
