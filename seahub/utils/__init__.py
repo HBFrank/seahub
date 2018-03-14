@@ -612,6 +612,8 @@ if EVENTS_CONFIG_FILE:
                 break
 
             for ev in events:
+                if ev.etype == 'clean-up-repo-trash' or ev.etype == 'clean-up-repo-trash-item':
+                    continue
                 if ev.etype == 'repo-update':
                     repo = seafile_api.get_repo(ev.repo_id)
                     if not repo:
