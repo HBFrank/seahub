@@ -14,6 +14,7 @@ from seahub.utils.timeutils import timestamp_to_isoformat_timestr
 from seahub.api2.utils import api_error
 from seahub.api2.throttling import UserRateThrottle
 from seahub.api2.authentication import TokenAuthentication
+from seahub.views import check_folder_permission
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ def get_my_repo_info(repo):
         "repo_id": repo.repo_id,
         "name": repo.repo_name,
         "size": repo.size,
+        "starred": repo.starred,
         "last_modified": timestamp_to_isoformat_timestr(repo.last_modified),
         "encrypted": repo.encrypted,
     }
@@ -33,6 +35,7 @@ def get_shared_in_repo_info(repo):
         "repo_id": repo.repo_id,
         "name": repo.repo_name,
         "size": repo.size,
+        "starred": repo.starred,
         "last_modified": timestamp_to_isoformat_timestr(repo.last_modified),
         "repo_owner": repo.user,
         "permission": repo.permission,
@@ -129,6 +132,43 @@ class AlphaBoxRepos(APIView):
                 result.append(repo_info)
 
         return Response(result)
+
+
+class AlphaBoxRepo(APIView):
+
+    authentication_classes = (TokenAuthentication, SessionAuthentication)
+    permission_classes = (IsAuthenticated,)
+    throttle_classes = (UserRateThrottle,)
+
+    def put(self, request, repo_id):
+        """ Star/unstar a repo
+
+        Permission checking:
+        1. User can view repo.
+        """
+
+        starred = request.data.get('starred', None)
+        starred = starred.lower()
+        if starred not in ('true', 'false'):
+            error_msg = "starred should be 'true' or 'false'."
+            return api_error(status.HTTP_400_BAD_REQUEST, error_msg)
+
+        if not check_folder_permission(request, repo_id, '/'):
+            error_msg = 'Permission denied.'
+            return api_error(status.HTTP_403_FORBIDDEN, error_msg)
+
+        username = request.user.username
+        try:
+            if starred == 'true':
+                seafile_api.star_repo(repo_id, username)
+            else:
+                seafile_api.unstar_repo(repo_id, username)
+        except Exception as e:
+            logger.error(e)
+            error_msg = 'Internal Server Error'
+            return api_error(status.HTTP_500_INTERNAL_SERVER_ERROR, error_msg)
+
+        return Response({'success': True})
 
 
 class AlphaBoxReposCount(APIView):
