@@ -16,7 +16,6 @@ from seahub.api2.utils import api_error
 from seahub.signals import clean_up_repo_trash, clean_up_repo_trash_item
 from seahub.utils import normalize_file_path
 from seahub.utils.timeutils import timestamp_to_isoformat_timestr
-from seahub.utils.repo import get_repo_owner
 from seahub.views import check_folder_permission
 
 from seahub.repo_trash.models import TrashCleanedItems
@@ -172,12 +171,11 @@ class RepoTrash(APIView):
             return api_error(status.HTTP_404_NOT_FOUND, error_msg)
 
         # permission check
-        username = request.user.username
-        repo_owner = get_repo_owner(request, repo_id)
-        if username != repo_owner:
+        if check_folder_permission(request, repo_id, '/') != 'rw':
             error_msg = 'Permission denied.'
             return api_error(status.HTTP_403_FORBIDDEN, error_msg)
 
+        username = request.user.username
         try:
             seafile_api.clean_up_repo_history(repo_id, keep_days)
             org_id = None if not request.user.org else request.user.org.org_id
@@ -220,12 +218,11 @@ class RepoTrashItem(APIView):
             return api_error(status.HTTP_404_NOT_FOUND, error_msg)
 
         # permission check
-        username = request.user.username
-        repo_owner = get_repo_owner(request, repo_id)
-        if username != repo_owner:
+        if check_folder_permission(request, repo_id, '/') != 'rw':
             error_msg = 'Permission denied.'
             return api_error(status.HTTP_403_FORBIDDEN, error_msg)
 
+        username = request.user.username
         try:
             TrashCleanedItems.objects.add_item(repo_id, path)
             org_id = None if not request.user.org else request.user.org.org_id
