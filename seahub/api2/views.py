@@ -887,9 +887,16 @@ class PubRepos(APIView):
 
         repos_json = []
         public_repos = list_inner_pub_repos(request)
+
+        repo_id_list = []
         for r in public_repos:
+
+            repo_id = r.repo_id
+            if repo_id not in repo_id_list:
+                repo_id_list.append(repo_id)
+
             repo = {
-                "id": r.repo_id,
+                "id": repo_id,
                 "name": r.repo_name,
                 "desc": r.repo_desc,
                 "owner": r.user,
@@ -908,6 +915,24 @@ class PubRepos(APIView):
                 repo["magic"] = r.magic
                 repo["random_key"] = r.random_key
             repos_json.append(repo)
+
+        # get share link info of repo
+
+        # file_share_repo_ids.query
+        # SELECT DISTINCT "share_fileshare"."repo_id" FROM "share_fileshare" WHERE "share_fileshare"."repo_id" IN ()
+        file_share_repo_ids = FileShare.objects.filter(repo_id__in=repo_id_list). \
+                values_list('repo_id', flat=True).distinct()
+
+        # upload_link_share_repo_ids.query
+        # SELECT DISTINCT "share_uploadlinkshare"."repo_id" FROM "share_uploadlinkshare" WHERE "share_uploadlinkshare"."repo_id" IN ()
+        upload_link_share_repo_ids = UploadLinkShare.objects.filter(repo_id__in=repo_id_list). \
+                values_list('repo_id', flat=True).distinct()
+
+        for repo in repos_json:
+            share_link_info = {}
+            share_link_info["has_download_link"] = repo_id in file_share_repo_ids
+            share_link_info["has_upload_link"] = repo_id in upload_link_share_repo_ids
+            repo["share_link"] = share_link_info
 
         return Response(repos_json)
 
