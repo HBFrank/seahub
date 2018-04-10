@@ -27,6 +27,7 @@ def get_my_repo_info(repo):
         "starred": repo.starred,
         "last_modified": timestamp_to_isoformat_timestr(repo.last_modified),
         "encrypted": repo.encrypted,
+        "status": repo.status if repo.status else '',
     }
 
     return repo_info
@@ -41,6 +42,7 @@ def get_shared_in_repo_info(repo):
         "repo_owner": repo.user,
         "permission": repo.permission,
         "encrypted": repo.encrypted,
+        "status": repo.status if repo.status else '',
     }
 
     return repo_info
@@ -188,32 +190,50 @@ class AlphaBoxRepo(APIView):
     throttle_classes = (UserRateThrottle,)
 
     def put(self, request, repo_id):
-        """ Star/unstar a repo
+        """ Modify repo basic info.
+
+        1. Star/unstar a repo.
+        2. Update repo status.
 
         Permission checking:
         1. User can view repo.
         """
 
         starred = request.data.get('starred', '')
-        starred = starred.lower()
-        if starred not in ('true', 'false'):
-            error_msg = "starred should be 'true' or 'false'."
-            return api_error(status.HTTP_400_BAD_REQUEST, error_msg)
+        if starred:
+            starred = starred.lower()
+            if starred not in ('true', 'false'):
+                error_msg = "starred should be 'true' or 'false'."
+                return api_error(status.HTTP_400_BAD_REQUEST, error_msg)
 
-        if not check_folder_permission(request, repo_id, '/'):
-            error_msg = 'Permission denied.'
-            return api_error(status.HTTP_403_FORBIDDEN, error_msg)
+            if not check_folder_permission(request, repo_id, '/'):
+                error_msg = 'Permission denied.'
+                return api_error(status.HTTP_403_FORBIDDEN, error_msg)
 
-        username = request.user.username
-        try:
-            if starred == 'true':
-                seafile_api.star_repo(repo_id, username)
-            else:
-                seafile_api.unstar_repo(repo_id, username)
-        except Exception as e:
-            logger.error(e)
-            error_msg = 'Internal Server Error'
-            return api_error(status.HTTP_500_INTERNAL_SERVER_ERROR, error_msg)
+            username = request.user.username
+            try:
+                if starred == 'true':
+                    seafile_api.star_repo(repo_id, username)
+                else:
+                    seafile_api.unstar_repo(repo_id, username)
+            except Exception as e:
+                logger.error(e)
+                error_msg = 'Internal Server Error'
+                return api_error(status.HTTP_500_INTERNAL_SERVER_ERROR, error_msg)
+
+        repo_status = request.data.get('status', '')
+        if repo_status:
+
+            if check_folder_permission(request, repo_id, '/') != 'rw':
+                error_msg = 'Permission denied.'
+                return api_error(status.HTTP_403_FORBIDDEN, error_msg)
+
+            try:
+                seafile_api.update_repo_status(repo_id, repo_status)
+            except Exception as e:
+                logger.error(e)
+                error_msg = 'Internal Server Error'
+                return api_error(status.HTTP_500_INTERNAL_SERVER_ERROR, error_msg)
 
         return Response({'success': True})
 

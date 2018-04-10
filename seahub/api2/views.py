@@ -908,6 +908,7 @@ class PubRepos(APIView):
                 "encrypted": r.encrypted,
                 "permission": r.permission,
                 "starred": r.starred,
+                "status": r.status if r.status else '',
                 "root": r.root,
             }
             if r.encrypted:
