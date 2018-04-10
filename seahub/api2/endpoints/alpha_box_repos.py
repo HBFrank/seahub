@@ -15,6 +15,7 @@ from seahub.api2.utils import api_error
 from seahub.api2.throttling import UserRateThrottle
 from seahub.api2.authentication import TokenAuthentication
 from seahub.views import check_folder_permission
+from seahub.share.models import FileShare, UploadLinkShare
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +151,32 @@ class AlphaBoxRepos(APIView):
             for repo in repos:
                 repo_info = get_shared_in_repo_info(repo)
                 result.append(repo_info)
+
+        # get repo id list
+        repo_id_list = []
+        for repo_info in result:
+            repo_id = repo_info["repo_id"]
+            if repo_id not in repo_id_list:
+                repo_id_list.append(repo_id)
+
+        # get share link info of repo
+
+        # file_share_repo_ids.query
+        # SELECT DISTINCT "share_fileshare"."repo_id" FROM "share_fileshare" WHERE "share_fileshare"."repo_id" IN ()
+        file_share_repo_ids = FileShare.objects.filter(repo_id__in=repo_id_list). \
+                values_list('repo_id', flat=True).distinct()
+
+        # upload_link_share_repo_ids.query
+        # SELECT DISTINCT "share_uploadlinkshare"."repo_id" FROM "share_uploadlinkshare" WHERE "share_uploadlinkshare"."repo_id" IN ()
+        upload_link_share_repo_ids = UploadLinkShare.objects.filter(repo_id__in=repo_id_list). \
+                values_list('repo_id', flat=True).distinct()
+
+        for repo_info in result:
+            repo_id = repo_info["repo_id"]
+            share_link_info = {}
+            share_link_info["has_download_link"] = repo_id in file_share_repo_ids
+            share_link_info["has_upload_link"] = repo_id in upload_link_share_repo_ids
+            repo_info["share_link"] = share_link_info
 
         return Response(result)
 
