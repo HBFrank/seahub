@@ -12,7 +12,8 @@ from seahub.views.sso import *
 from seahub.views.file import view_history_file, view_trash_file,\
     view_snapshot_file, file_edit, view_shared_file, view_file_via_shared_dir,\
     text_diff, view_raw_file, view_raw_shared_file, \
-    download_file, view_lib_file, file_access
+    download_file, view_lib_file, file_access, \
+    wopi_file_edit, onlyoffice_file_edit
 from seahub.views.repo import repo_history_view, view_shared_dir, \
     view_shared_upload_link
 from notifications.views import notification_list
@@ -132,6 +133,8 @@ urlpatterns = [
     url(r'^repo/(?P<repo_id>[-0-9a-f]{36})/trash/files/$', view_trash_file, name="view_trash_file"),
     url(r'^repo/(?P<repo_id>[-0-9a-f]{36})/snapshot/files/$', view_snapshot_file, name="view_snapshot_file"),
     url(r'^repo/(?P<repo_id>[-0-9a-f]{36})/file/edit/$', file_edit, name='file_edit'),
+    url(r'^repo/(?P<repo_id>[-0-9a-f]{36})/wopi/file/edit/$', wopi_file_edit, name='wopi_file_edit'),
+    url(r'^repo/(?P<repo_id>[-0-9a-f]{36})/onlyoffice/file/edit/$', onlyoffice_file_edit, name='onlyoffice_file_edit'),
     url(r'^repo/(?P<repo_id>[-0-9a-f]{36})/(?P<obj_id>[0-9a-f]{40})/download/$', download_file, name='download_file'),
 
     ### lib (replace the old `repo` urls) ###

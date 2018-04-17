@@ -1,0 +1,47 @@
+{% extends 'view_file_base.html' %}
+{% load seahub_tags i18n %}
+
+{% block extra_style %}{{block.super}}
+<style type="text/css">
+html, body { padding:0; margin:0; height:100%; }
+</style>
+{% endblock %}
+
+{% block edit_file %}
+<a class="sf-btn-group-btn sf-btn-link op-icon sf2-icon-edit" href="{% url 'onlyoffice_file_edit' repo.id %}?path={{ path|urlencode }}" id="edit" title="{% trans "Edit" %}"></a>
+{% endblock %}
+
+{% block file_view %}
+<div id="placeholder"></div>
+{% endblock %}
+
+{% block extra_script %}{{ block.super }}
+{% get_current_language as LANGUAGE_CODE %}
+<script type="text/javascript" src="{{ ONLYOFFICE_APIJS_URL }}"></script>
+<script type="text/javascript">
+var config = {
+    "document": {
+        "fileType": "{{ file_type }}",
+        "key": "{{doc_key}}",
+        "title": "{{doc_title}}",
+        "url": "{{doc_url}}",
+        "permissions": {
+            "download": true,
+            "edit": false,
+            "print": true,
+            "review": true
+        },
+    },
+    "documentType": "{{document_type}}", // 'text' | 'spreadsheet' | 'presentation',
+    "editorConfig": {
+        "callbackUrl": "{{ callback_url }}",
+        "lang": "{{ LANGUAGE_CODE }}",
+        "mode": "view",
+        "user": {
+            "name": "{{ username|email2nickname }}"
+        }
+    },
+};
+var docEditor = new DocsAPI.DocEditor("placeholder", config);
+</script>
+{% endblock%}
